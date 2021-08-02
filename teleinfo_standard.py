@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # __author__ = "Sébastien Reuiller"
 # __licence__ = "Apache License 2.0"
+"""Send teleinfo standard to influxdb."""
 
 # Python 3, prerequis : pip install pySerial influxdb
 #
@@ -22,106 +23,116 @@
 # }
 
 
-import serial
+
 import logging
 import time
-import requests
 from datetime import datetime
+import requests
+import serial
 from influxdb import InfluxDBClient
-mode = "DEBUG"  # DEBUG, INFO
+MODE = "DEBUG"  # DEBUG, INFO
 
 # clés téléinfo
-char_measure_keys = ['DATE', 'NGTF', 'LTARF', 'MSG1', 'NJOURF', 'NJOURF+1', 'PJOURF', 'PJOURF+1','EASD02', 'STGE', 'RELAIS' ]
+CHAR_MEASURE_KEYS = ['DATE', 'NGTF', 'LTARF', 'MSG1', 'NJOURF', 'NJOURF+1',
+                     'PJOURF', 'PJOURF+1', 'EASD02', 'STGE', 'RELAIS']
+
+KEYS_FILE = "/opt/teleinfo-linky-with-raspberry/liste_champs_mode_standard.txt"
+DICO_FILE = "/opt/teleinfo-linky-with-raspberry/liste_fabriquants_linky.txt"
 
 # création du logguer
-logging.basicConfig(filename='/var/log/teleinfo/releve.log', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(filename='/var/log/teleinfo/releve.log',
+                    level=logging.INFO, format='%(asctime)s %(message)s')
 logging.info("Teleinfo starting..")
 
 # connexion a la base de données InfluxDB
-client = InfluxDBClient('localhost', 8086)
-db = "teleinfo2"
-connected = False
-while not connected:
+CLIENT = InfluxDBClient('localhost', 8086)
+DB = "teleinfo2"
+CONNECTED = False
+while not CONNECTED:
     try:
-        logging.info("Database %s exists?" % db)
-        if not {'name': db} in client.get_list_database():
-            logging.info("Database %s creation.." % db)
-            client.create_database(db)
-            logging.info("Database %s created!" % db)
-        client.switch_database(db)
-        logging.info("Connected to %s!" % db)
+        logging.info("Database %s exists?", DB)
+        if {'name': DB} not in CLIENT.get_list_database():
+            logging.info("Database %s creation..", DB)
+            CLIENT.create_database(DB)
+            logging.info("Database %s created!", DB)
+        CLIENT.switch_database(DB)
+        logging.info("Connected to %s!", DB)
     except requests.exceptions.ConnectionError:
         logging.info('InfluxDB is not reachable. Waiting 5 seconds to retry.')
         time.sleep(5)
     else:
-        connected = True
+        CONNECTED = True
 
 
-def add_measures(measures, time_measure):
+def add_measures(measures):
+    """Add measures to array."""
     points = []
     for measure, value in measures.items():
         point = {
-                    "measurement": measure,
-                    "tags": {
-                        # identification de la sonde et du compteur
-                        "host": "raspberry",
-                        "region": "linky"
-                    },
-                    "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "fields": {
-                        "value": value
-                    }
+            "measurement": measure,
+            "tags": {
+                # identification de la sonde et du compteur
+                "host": "raspberry",
+                "region": "linky"
+            },
+            "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "fields": {
+                "value": value
                 }
+            }
         points.append(point)
 
-    client.write_points(points)
+    CLIENT.write_points(points)
 
 
 def verif_checksum(line_str, checksum):
+    """Check data checksum."""
     data_unicode = 0
     data = line_str[0:-2] #chaine sans checksum de fin
     for caractere in data:
-            data_unicode += ord(caractere)
+        data_unicode += ord(caractere)
     sum_unicode = (data_unicode & 63) + 32
-    sum = chr(sum_unicode)
-    if (checksum == sum):
-        return True
-    else:
-        return False
+    sum_chain = chr(sum_unicode)
+    return bool(checksum == sum_chain)
 
 
 def keys_from_file(file):
+    """Get keys from file."""
     labels = []
     #"available_linky_standard_keys.txt"
-    with open(file) as f:
-        for line in f:
-           information = line.split("\t")
-           labels.append(information[1])
+    with open(file) as keys_file:
+        for line in keys_file:
+            information = line.split("\t")
+            labels.append(information[1])
     return labels
 
 
 def dico_from_file(file):
+    """Get info from file."""
     information = {}
-    with open(file) as f:
-        for line in f:
-            line = line.replace("\n","")
+    with open(file) as dico_file:
+        for line in dico_file:
+            line = line.replace("\n", "")
             decoupage = line.split("\t")
-            k = int(decoupage[0])
-            v = decoupage[1]
-            information[k] = v
+            code_fabricant = int(decoupage[0])
+            nom_fabricant = decoupage[1]
+            information[code_fabricant] = nom_fabricant
     return information
 
 
 def main():
-    with serial.Serial(port='/dev/ttyAMA0', baudrate=9600, parity=serial.PARITY_ODD, bytesize=serial.SEVENBITS, timeout=1) as ser:
-        # stopbits=serial.STOPBITS_ONE, 
+    """Main function to read teleinfo."""
+    with serial.Serial(port='/dev/ttyAMA0', baudrate=9600, parity=serial.PARITY_NONE,
+                       stopbits=serial.STOPBITS_ONE,
+                       bytesize=serial.SEVENBITS, timeout=1) as ser:
+        # stopbits=serial.STOPBITS_ONE,
         logging.info("Teleinfo is reading on /dev/ttyAMA0..")
         logging.info("Mode standard")
-    
-        labels_linky = keys_from_file("/opt/teleinfo-linky-with-raspberry/liste_champs_mode_standard.txt")
-        liste_fabriquants = dico_from_file("/opt/teleinfo-linky-with-raspberry/liste_fabriquants_linky.txt")
+
+        labels_linky = keys_from_file(KEYS_FILE)
+        liste_fabriquants = dico_from_file(DICO_FILE)
         #liste_modeles = keys_from_file("/opt/teleinfo-linky-with-raspberry/modeles_linky.txt")
-        
+
         trame = dict()
 
         # boucle pour partir sur un début de trame
@@ -135,37 +146,38 @@ def main():
         while True:
             #logging.debug(line)
             line_str = line.decode("utf-8")
-            ar = line_str.split("\t") # separation sur tabulation
+            ar_split = line_str.split("\t") # separation sur tabulation
 
             try:
-                key = ar[0]
+                key = ar_split[0]
                 #checksum = ar[-1] #dernier caractere
                 #verification = verif_checksum(line_str,checksum)
-                #logging.debug("verification checksum :  s%" % str(verification)) 
+                #logging.debug("verification checksum :  s%" % str(verification))
 
-                if (key in labels_linky):
-                    if key in char_measure_keys:  # typer les valeurs connus sous forme de chaines en "string"
-                        value = ar[-2]
+                if key in labels_linky:
+                    # typer les valeurs connus sous forme de chaines en "string"
+                    if key in CHAR_MEASURE_KEYS:
+                        value = ar_split[-2]
                     else:
                         try:
-                            value = int(ar[-2])   # typer les autres valeurs en "integer"
-                        except:
+                            value = int(ar_split[-2])   # typer les autres valeurs en "integer"
+                        except Exception:
                             logging.info("erreur de conversion en nombre entier")
                             value = 0
 
                     trame[key] = value   # creation du champ pour la trame en cours
                 else:
                     trame['verification_error'] = "1"
-                    logging.DEBUG("erreur etiquette inconnue")
+                    logging.debug("erreur etiquette inconnue")
 
                 if b'\x03' in line:  # si caractère de fin de trame, on insère la trame dans influx
                     time_measure = time.time()
-                    
+
                     # ajout nom fabriquant
                     numero_compteur = str(trame['ADSC'])
                     id_fabriquant = int(numero_compteur[2:4])
                     trame['OEM'] = liste_fabriquants[id_fabriquant]
-                   
+
                     # ajout du CosPhi calculé
                     if (trame["IRMS1"] and trame["URMS1"] and trame["SINSTS"]):
                         trame["COSPHI"] = (trame["SINSTS"] / (trame["IRMS1"] * trame["URMS1"]))
@@ -174,20 +186,18 @@ def main():
                     trame["timestamp"] = int(time_measure)
 
                     # insertion dans influxdb
-                    add_measures(trame, time_measure)
+                    add_measures(trame)
 
                    #logging.debug(trame)
 
                     trame = dict()  # on repart sur une nouvelle trame
-            except Exception as e:
-                logging.debug("erreur traitement etiquette: %s" % key)
+            except Exception:
+                logging.debug("erreur traitement etiquette: %s", key)
                 #logging.error("Exception : %s" % e, exc_info=True)
                 #logging.error("Ligne brut: %s \n" % line)
             line = ser.readline()
 
 
 if __name__ == '__main__':
-    if connected:
+    if CONNECTED:
         main()
-
-
