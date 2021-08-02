@@ -6,6 +6,7 @@ Surveiller sa consommation électrique en temps réel avec un compteur Linky et 
 
 Basé sur le travail de Sebastien Reuiller qui m'a permis d'appréhender rapidement le fonctionnement de la prise de Télé Information Client (TIC)
 J'ai rajouté quelques fonctions telles que le calcul du checksum des valeurs d'index et la prise en charge de la tarification de base.
+Merci à gizmo15 pour l'amélioration du code avec une mise en conformité PEP8
 # Mode historique et standard
 Les compteurs d'énergie électronique mis à disposition par Enedis disposent quasiment tous d'une prise TIC dont la connectique peut varié.
 Deux modes de communication sont disponibles : 
@@ -19,7 +20,7 @@ Le mode standard permet d'accéder à plus d'informations dont la liste exaustiv
 https://github.com/Charlymd/teleinfo-linky-with-raspberry/blob/master/liste_champs_mode_standard.txt
 
 Exemple :
-- Tension instentanée et moyennée par phase
+- Tension instantanée et moyennée par phase
 - Energie réactive
 - Courbe de charge active
 - Point de reférence de mesure Enedis
