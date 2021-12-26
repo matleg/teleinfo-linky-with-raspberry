@@ -4,7 +4,7 @@
 # __licence__ = "Apache License 2.0"
 """Send teleinfo standard to influxdb."""
 
-# Python 3, prerequis : pip install pySerial influxdb
+# Python 3, prerequis : pip3 install -r requirements.txt
 #
 # Exemple de trame:
 # {
