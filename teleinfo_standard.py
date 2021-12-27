@@ -22,11 +22,13 @@
 #  'PTEC': 'HP..'            # Période tarifaire en cours
 # }
 
-
-
+import os
+import sys
 import logging
 import time
+import pathlib
 from datetime import datetime
+from configparser import ConfigParser
 import requests
 import serial
 from influxdb import InfluxDBClient
@@ -36,27 +38,47 @@ MODE = "DEBUG"  # DEBUG, INFO
 CHAR_MEASURE_KEYS = ['DATE', 'NGTF', 'LTARF', 'MSG1', 'NJOURF', 'NJOURF+1',
                      'PJOURF', 'PJOURF+1', 'EASD02', 'STGE', 'RELAIS']
 
-KEYS_FILE = "/opt/teleinfo-linky-with-raspberry/liste_champs_mode_standard.txt"
-DICO_FILE = "/opt/teleinfo-linky-with-raspberry/liste_fabriquants_linky.txt"
+LOGFOLDER = "/var/log/teleinfo/"
+LOGFILE = "releve.log"
+TELEINFO_INI = "./teleinfo.ini"
+KEYS_FILE = "./liste_champs_mode_standard.txt"
+DICO_FILE = "./liste_fabriquants_linky.txt"
+
+# Check if log folder exist
+if not pathlib.Path(LOGFOLDER).exists():
+    os.mkdir(LOGFOLDER)
+
+if not pathlib.Path(TELEINFO_INI).exists():
+    print("Ini {} not found!".format(TELEINFO_INI))
+    sys.exit(1)
+
+# Read teleinfo.ini
+CONFIG = ConfigParser()
+CONFIG.read(TELEINFO_INI)
+TELEINFO_DATA = CONFIG['teleinfo']
+SERIALPORT = TELEINFO_DATA['serial_port']
+DB_SERVER = TELEINFO_DATA['influxdb_server']
+DB_PORT = TELEINFO_DATA['influxdb_port']
+DB_DATABASE = TELEINFO_DATA['influxdb_database']
+
 
 # création du logguer
-logging.basicConfig(filename='/var/log/teleinfo/releve.log',
+logging.basicConfig(filename=LOGFOLDER + LOGFILE,
                     level=logging.INFO, format='%(asctime)s %(message)s')
 logging.info("Teleinfo starting..")
 
 # connexion a la base de données InfluxDB
-CLIENT = InfluxDBClient('localhost', 8086)
-DB = "teleinfo2"
+CLIENT = InfluxDBClient(DB_SERVER, DB_PORT)
 CONNECTED = False
 while not CONNECTED:
     try:
-        logging.info("Database %s exists?", DB)
-        if {'name': DB} not in CLIENT.get_list_database():
-            logging.info("Database %s creation..", DB)
-            CLIENT.create_database(DB)
-            logging.info("Database %s created!", DB)
-        CLIENT.switch_database(DB)
-        logging.info("Connected to %s!", DB)
+        logging.info("Database %s exists?", DB_DATABASE)
+        if {'name': DB_DATABASE} not in CLIENT.get_list_database():
+            logging.info("Database %s creation..", DB_DATABASE)
+            CLIENT.create_database(DB_DATABASE)
+            logging.info("Database %s created!", DB_DATABASE)
+        CLIENT.switch_database(DB_DATABASE)
+        logging.info("Connected to %s!", DB_DATABASE)
     except requests.exceptions.ConnectionError:
         logging.info('InfluxDB is not reachable. Waiting 5 seconds to retry.')
         time.sleep(5)
