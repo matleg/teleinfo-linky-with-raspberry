@@ -1,6 +1,15 @@
 # Téléinfo Linky avec un Raspberry Pi
 Surveiller sa consommation électrique en temps réel avec un compteur Linky et un Raspberry 
 
+Fonctionnalités :
+- lecture et analyse des trames reçus depuis la prise TIC d'un compteur électrique
+- gestion du mode historique et standard (consommation, tension, puissance, cout, production, etc...)
+- analyse numéro de compteur (fabriquant, numéro de série, puissance de coupure)
+- analyse de l'abonnement (option tarifaire, puissance souscrite, version teleinfo)
+- calcul du CosPhi (ajustement nécesssaire)
+- verification du checksum (intégration à finir)
+- registre de statut (developpement en cours)
+
 ![grafana_std](https://github.com/Charlymd/teleinfo-linky-with-raspberry/blob/master/grafana_linky_standard.png)
 ![grafana_std2](https://github.com/Charlymd/teleinfo-linky-with-raspberry/blob/master/grafana%20info%20compteur%20floute.png)
 
