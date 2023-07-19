@@ -8,18 +8,7 @@
 #
 # Exemple de trame:
 # {
-#  'BASE': '123456789'       # Index heure de base en Wh
-#  'OPTARIF': 'HC..',        # Option tarifaire HC/BASE
-#  'IMAX': '007',            # Intensité max
-#  'HCHC': '040177099',      # Index heure creuse en Wh
-#  'IINST': '005',           # Intensité instantanée en A
-#  'PAPP': '01289',          # Puissance Apparente, en VA
-#  'MOTDETAT': '000000',     # Mot d'état du compteur
-#  'HHPHC': 'A',             # Horaire Heures Pleines Heures Creuses
-#  'ISOUSC': '45',           # Intensité souscrite en A
-#  'ADCO': '000000000000',   # Adresse du compteur
-#  'HCHP': '035972694',      # index heure pleine en Wh
-#  'PTEC': 'HP..'            # Période tarifaire en cours
+    
 # }
 
 import os
@@ -144,11 +133,11 @@ def dico_from_file(file):
 
 def main():
     """Main function to read teleinfo."""
-    with serial.Serial(port='/dev/ttyAMA0', baudrate=9600, parity=serial.PARITY_NONE,
+    with serial.Serial(port=SERIALPORT, baudrate=9600, parity=serial.PARITY_NONE,
                        stopbits=serial.STOPBITS_ONE,
                        bytesize=serial.SEVENBITS, timeout=1) as ser:
         # stopbits=serial.STOPBITS_ONE,
-        logging.info("Teleinfo is reading on /dev/ttyAMA0..")
+        logging.info(f"Teleinfo is reading on {SERIALPORT}..")
         logging.info("Mode standard")
 
         labels_linky = keys_from_file(KEYS_FILE)
